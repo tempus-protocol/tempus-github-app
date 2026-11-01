@@ -98,8 +98,8 @@ external repositories of the Fase 2 pilot.
 ## Support and links
 
 - Documentation: README and `docs/SETUP.md` of this repository
-- Verifier: <https://julio-patron.github.io/tempus-ddb/verify.html>
-- Protocol: <https://github.com/Julio-Patron/tempus-ddb>
+- Verifier: <https://tempus-protocol.github.io/tempus-ddb/verify.html>
+- Protocol: <https://github.com/tempus-protocol/tempus-ddb>
 - Publisher: the `tempus-protocol` GitHub organization (<https://github.com/tempus-protocol>)
 - Support contact: `__` (maintainer decision)
 - Privacy statement: the App stores no repository content; evidence bundles contain the

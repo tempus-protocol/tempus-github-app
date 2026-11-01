@@ -10,7 +10,7 @@ You can register the App manually or via the App Manifest (`manifest/app.yml`).
 
 1. Go to **GitHub Settings → Developer settings → GitHub Apps → New GitHub App**.
 2. **App Name**: Choose a unique name (e.g., `tempus-guard-acme`).
-3. **Homepage URL**: `https://github.com/Julio-Patron/tempus-ddb` (or your organization's URL).
+3. **Homepage URL**: `https://github.com/tempus-protocol/tempus-ddb` (or your organization's URL).
 4. **Permissions**:
    - **Repository permissions**:
      - **Issues**: `Read and write`
@@ -133,11 +133,11 @@ flow does, step by step, and what each exit code means, is in the
 What a reviewer sees on the pull request: a check named **Verified by Tempus** (green only when
 the evidence verifies and the action succeeded), whose *Details* link opens the public verifier
 with the bundle digest and the gate key pre-filled, and whose text embeds the evidence bundle.
-Pasting that bundle into <https://julio-patron.github.io/tempus-ddb/verify.html> re-verifies
+Pasting that bundle into <https://tempus-protocol.github.io/tempus-ddb/verify.html> re-verifies
 every signature offline; the page says what a bundle cannot show (single-use consumption lives
 in the gate's ledger).
 
-On the agent's machine, [the Tempus Guard CLI](https://github.com/Julio-Patron/Universal-Kernel-Ciel) produces
+On the agent's machine, [the Tempus Guard CLI](https://github.com/tempus-protocol/Universal-Kernel-Ciel) produces
 the signed `github.push_branch` intent with the bundle, the paths and `diff_sha256`
 (`tempus guard intent --branch agent/fix-123 --base origin/main ...`),
 and `tempus guard hook install` refuses direct pushes from that clone.

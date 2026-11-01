@@ -53,7 +53,7 @@ jobs:
           # tempus-ddb>=0.6 requirement against it instead of looking on PyPI.
           if [ "$TEMPUS_DDB" = "main" ]; then
             python -m pip install \
-              "tempus-ddb @ git+https://github.com/Julio-Patron/tempus-ddb.git@main"
+              "tempus-ddb @ git+https://github.com/tempus-protocol/tempus-ddb.git@main"
           else
             python -m pip install "tempus-ddb==$TEMPUS_DDB"
           fi

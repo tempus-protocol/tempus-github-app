@@ -36,7 +36,7 @@ classifiers = [
 dependencies = [
     # The Guard flow needs the 0.6 core (export_bundle with verify_url, verify_bundle
     # trust report, bundle_digest). Until 0.6.0 is on PyPI, install the core from git:
-    #   pip install "tempus-ddb @ git+https://github.com/Julio-Patron/tempus-ddb.git@main"
+    #   pip install "tempus-ddb @ git+https://github.com/tempus-protocol/tempus-ddb.git@main"
     "tempus-ddb>=0.6,<0.7",
     "cryptography>=42.0.0",
     "pyjwt>=2.8.0",

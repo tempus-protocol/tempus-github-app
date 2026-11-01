@@ -28,7 +28,7 @@ GATE = "a" * 64
 EXECUTOR = "b" * 64
 HEAD = "c" * 40
 DIGEST = "d" * 64
-VERIFY_URL = f"https://julio-patron.github.io/tempus-ddb/verify.html#bundle={DIGEST}"
+VERIFY_URL = f"https://tempus-protocol.github.io/tempus-ddb/verify.html#bundle={DIGEST}"
 BUNDLE = json.dumps({"schema_version": "tempus.evidence-bundle.v1", "action_id": ACTION, "verify_url": VERIFY_URL})
 
 

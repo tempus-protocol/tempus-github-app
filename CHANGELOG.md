@@ -7,7 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — 0.2.0 "Guard"
 
-Tempus Guard for GitHub: every agent change arrives with evidence.
+Tempus Guard for GitHub: every agent change arrives with evidence. The repository lives in the
+`tempus-protocol` GitHub organization; every link (core, verifier, Guard CLI) points there.
 
 ### Added
 

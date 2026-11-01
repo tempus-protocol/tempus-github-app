@@ -7,10 +7,10 @@
 **Signed, single-use permits · Short-lived installation tokens · One mediated write · A "Verified by Tempus" check with the evidence bundle anyone can verify**
 
 <p align="center">
-  <a href="https://github.com/Julio-Patron/tempus-github-app/actions/workflows/ci.yml"><img src="https://github.com/Julio-Patron/tempus-github-app/actions/workflows/ci.yml/badge.svg" alt="CI Build" /></a>
-  <a href="https://github.com/Julio-Patron/tempus-ddb"><img src="https://img.shields.io/badge/ecosystem-tempus--ddb-blue.svg" alt="Tempus DDB Ecosystem" /></a>
+  <a href="https://github.com/tempus-protocol/tempus-github-app/actions/workflows/ci.yml"><img src="https://github.com/tempus-protocol/tempus-github-app/actions/workflows/ci.yml/badge.svg" alt="CI Build" /></a>
+  <a href="https://github.com/tempus-protocol/tempus-ddb"><img src="https://img.shields.io/badge/ecosystem-tempus--ddb-blue.svg" alt="Tempus DDB Ecosystem" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License: MIT" /></a>
-  <a href="https://julio-patron.github.io/tempus-ddb/"><img src="https://img.shields.io/badge/docs-interactive%20trace-orange.svg" alt="Interactive Trace Docs" /></a>
+  <a href="https://tempus-protocol.github.io/tempus-ddb/"><img src="https://img.shields.io/badge/docs-interactive%20trace-orange.svg" alt="Interactive Trace Docs" /></a>
 </p>
 
 </div>
@@ -19,7 +19,7 @@
 
 ## 🔒 Overview
 
-**Tempus Guard for GitHub** is the first installable product on the [Tempus protocol](https://github.com/Julio-Patron/tempus-ddb). It decouples GitHub privileged operations from autonomous AI agents and leaves evidence behind. Rather than provisioning personal access tokens (PATs) directly to agents or runners:
+**Tempus Guard for GitHub** is the first installable product on the [Tempus protocol](https://github.com/tempus-protocol/tempus-ddb). It decouples GitHub privileged operations from autonomous AI agents and leaves evidence behind. Rather than provisioning personal access tokens (PATs) directly to agents or runners:
 
 1. **Requesting Agents** sign an **Intent** declaring the requested repository action without holding GitHub credentials.
 2. **Tempus Gate** evaluates cryptographic tenant policy and grants an expiring, single-use signed **Permit**.
@@ -27,7 +27,7 @@
 4. **Execution Outcomes** are signed and recorded into the Tempus immutable decision ledger.
 5. **The Guard flow** exports the action's evidence bundle, verifies it against the pinned gate key and publishes a **Verified by Tempus** check run on the commit the action produced, linking to the public verifier.
 
-Neither the GitHub App private key nor ephemeral installation tokens ever leak to the requesting agent or execution receipts. A reviewer verifies the check's evidence from a browser with only the gate's public key, without installing Tempus. On the agent's side, [the Tempus Guard CLI](https://github.com/Julio-Patron/Universal-Kernel-Ciel) (`tempus guard intent`) builds and signs the push intent from a local branch.
+Neither the GitHub App private key nor ephemeral installation tokens ever leak to the requesting agent or execution receipts. A reviewer verifies the check's evidence from a browser with only the gate's public key, without installing Tempus. On the agent's side, [the Tempus Guard CLI](https://github.com/tempus-protocol/Universal-Kernel-Ciel) (`tempus guard intent`) builds and signs the push intent from a local branch.
 
 ```text
 ┌─────────────────┐       1. Signed Intent        ┌──────────────────┐
@@ -73,7 +73,7 @@ Requires Python 3.10+ and `git`. The supported core line is **tempus-ddb 0.6, be
 on PyPI, install the core from its `main` branch first (stable Rust toolchain required):
 
 ```bash
-pip install "tempus-ddb @ git+https://github.com/Julio-Patron/tempus-ddb.git@main"
+pip install "tempus-ddb @ git+https://github.com/tempus-protocol/tempus-ddb.git@main"
 pip install -e .
 ```
 
@@ -249,7 +249,7 @@ bundle verifies **and** the action succeeded; anything else is `failure`, with t
 error codes in the text. Its details link is the bundle's `verify_url` with the gate key
 appended as a hint (`#bundle=<digest>&gate=<key>`), and the check text embeds the bundle itself
 when it fits GitHub's 65,535-character limit (otherwise it names the digest), so a reviewer
-can paste it into <https://julio-patron.github.io/tempus-ddb/verify.html> and verify without
+can paste it into <https://tempus-protocol.github.io/tempus-ddb/verify.html> and verify without
 installing anything. The check also says what the bundle cannot prove (`trust.not_checked`).
 
 ```bash
@@ -351,4 +351,4 @@ pytest tests/ -v
 * [MIT License](LICENSE)
 * [Changelog](CHANGELOG.md)
 
-Part of the [Tempus DDB](https://github.com/Julio-Patron/tempus-ddb) ecosystem.
+Part of the [Tempus DDB](https://github.com/tempus-protocol/tempus-ddb) ecosystem.

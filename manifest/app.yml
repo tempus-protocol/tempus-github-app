@@ -5,7 +5,7 @@
 # that already accepted its permissions: change the App's permissions in its settings and
 # let each installation accept them (docs/SETUP.md).
 name: Tempus Guard for GitHub
-url: https://github.com/Julio-Patron/tempus-github-app
+url: https://github.com/tempus-protocol/tempus-github-app
 description: >-
   Every agent change arrives with evidence. Agents never hold a GitHub credential: a Tempus
   gate issues a signed, single-use permit, this App performs the write, and the pull request
