@@ -137,7 +137,7 @@ Pasting that bundle into <https://tempus-protocol.github.io/tempus-ddb/verify.ht
 every signature offline; the page says what a bundle cannot show (single-use consumption lives
 in the gate's ledger).
 
-On the agent's machine, [the Tempus Guard CLI](https://github.com/tempus-protocol/Universal-Kernel-Ciel) produces
+On the agent's machine, [the Tempus Guard CLI](https://github.com/tempus-protocol/tempus-guard-cli) produces
 the signed `github.push_branch` intent with the bundle, the paths and `diff_sha256`
 (`tempus guard intent --branch agent/fix-123 --base origin/main ...`),
 and `tempus guard hook install` refuses direct pushes from that clone.
