@@ -13,6 +13,7 @@ import jwt
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
 
+from .check_run import CHECK_RUN_SCOPE
 from .transport import (
     RESOURCE_PATTERN,
     GitHubExecutorError,
@@ -37,6 +38,8 @@ class GitHubAppCredentials:
         "github.request_review": "pull_requests",
         "github.merge_pull_request": "contents",
         "github.push_branch": "contents",
+        # Not an action: the Guard check run on the commit an action produced.
+        CHECK_RUN_SCOPE: "checks",
     }
 
     def __init__(
@@ -136,7 +139,7 @@ class GitHubAppCredentials:
                         "Accept": "application/vnd.github+json",
                         "Authorization": "Bearer " + app_jwt,
                         "Content-Type": "application/json",
-                        "User-Agent": "tempus-github-app/0.1.0",
+                        "User-Agent": "tempus-github-app/0.2.0",
                         "X-GitHub-Api-Version": "2022-11-28",
                     },
                     {

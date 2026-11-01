@@ -43,7 +43,15 @@ MAX_BUNDLE_BYTES = 100 * 1024 * 1024
 _SHA_PATTERN = re.compile(r"[0-9a-f]{40}")
 _SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
 _BRANCH_PATTERN = re.compile(r"[A-Za-z0-9._/-]{1,200}")
-_PUSH_FIELDS = {"branch", "base_sha", "tip_sha", "new_branch", "bundle_sha256", "paths"}
+_PUSH_FIELDS = {
+    "branch", "base_sha", "tip_sha", "new_branch", "bundle_sha256", "paths", "diff_sha256",
+}
+# The digest of the change itself, as the local client (`tempus guard intent`) computes
+# it: sha256 over the raw, NUL-separated diff-tree listing between base and tip. It is
+# plumbing output (modes, blob ids, status letter, path), so it does not depend on diff
+# settings or git version the way a textual patch does. Optional in the intent; when
+# present the executor recomputes it from the unbundled commits and requires equality.
+DIFF_DIGEST_ARGS = ("diff-tree", "-r", "-z", "--no-renames", "--no-commit-id", "--raw", "--abbrev=40")
 # Failures reported before git sends a pack: nothing can have been written.
 _NOT_SENT_MARKERS = (
     "could not resolve host",
@@ -65,6 +73,7 @@ class PushRequest:
     new_branch: bool
     bundle_sha256: str
     paths: tuple[str, ...]
+    diff_sha256: str | None = None
 
 
 def validate_branch_prefix(prefix: str) -> str:
@@ -131,6 +140,12 @@ def parse_push_request(action_input: Mapping[str, Any], branch_prefix: str) -> P
     if paths != sorted(set(paths)):
         raise GitHubExecutorError("paths must be sorted and unique")
 
+    diff_sha256 = action_input.get("diff_sha256")
+    if diff_sha256 is not None and (
+        not isinstance(diff_sha256, str) or not _SHA256_PATTERN.fullmatch(diff_sha256)
+    ):
+        raise GitHubExecutorError("diff_sha256 must be 64 lowercase hexadecimal characters")
+
     return PushRequest(
         branch=branch,
         base_sha=shas["base_sha"],
@@ -138,6 +153,7 @@ def parse_push_request(action_input: Mapping[str, Any], branch_prefix: str) -> P
         new_branch=new_branch,
         bundle_sha256=bundle_sha256,
         paths=tuple(paths),
+        diff_sha256=diff_sha256,
     )
 
 
@@ -317,6 +333,10 @@ class BundlePublisher:
             return _failed(BINDING_REJECTED)
         if paths != request.paths:
             return _failed(BINDING_REJECTED)
+        if request.diff_sha256 is not None:
+            digest = self._diff_digest(repo, request.base_sha, request.tip_sha)
+            if digest is None or not hmac.compare_digest(digest, request.diff_sha256):
+                return _failed(BINDING_REJECTED)
 
         # The only write. The lease pins the remote branch to the signed state, and the
         # ancestry check above makes that update a fast-forward (or a branch creation).
@@ -343,7 +363,7 @@ class BundlePublisher:
             return _failed(BINDING_REJECTED, reason=summary[:200])
         if flag not in (" ", "*", "+", "="):
             raise AmbiguousTransportError(TRANSPORT_AMBIGUOUS)
-        return ExecutionResult(status="SUCCEEDED", payload={
+        payload = {
             "action_type": PUSH_ACTION,
             "resource": resource,
             "branch": request.branch,
@@ -352,7 +372,10 @@ class BundlePublisher:
             "created": flag == "*",
             "up_to_date": flag == "=",
             "paths_count": len(paths),
-        })
+        }
+        if request.diff_sha256 is not None:
+            payload["diff_sha256"] = request.diff_sha256
+        return ExecutionResult(status="SUCCEEDED", payload=payload)
 
     def _git(
         self,
@@ -387,6 +410,13 @@ class BundlePublisher:
             return None  # Non-UTF-8 paths cannot be matched against the signed list.
         # -z separates names with NUL; stray newlines only come from commit separators.
         return tuple(sorted({name.strip("\n") for name in output.split("\0")} - {""}))
+
+    def _diff_digest(self, repo: Path, base: str, tip: str) -> str | None:
+        """sha256 of the raw diff-tree listing; None when git could not produce it."""
+        listing = self._git([*DIFF_DIGEST_ARGS, base, tip], cwd=repo)
+        if listing.returncode != 0:
+            return None
+        return hashlib.sha256(listing.stdout).hexdigest()
 
     def _remaining_budget(self, context: PermitContext | None) -> float:
         if context is None:

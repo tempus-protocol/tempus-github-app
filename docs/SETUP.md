@@ -1,6 +1,6 @@
-# Setup and Registration Guide: Tempus GitHub App
+# Setup and Registration Guide: Tempus Guard for GitHub
 
-This guide explains how to register, install, and operate the Tempus GitHub App for credential-isolated, mediated execution.
+This guide explains how to register, install, and operate Tempus Guard for GitHub: credential-isolated, mediated execution with a "Verified by Tempus" check on every change.
 
 ---
 
@@ -9,13 +9,14 @@ This guide explains how to register, install, and operate the Tempus GitHub App 
 You can register the App manually or via the App Manifest (`manifest/app.yml`).
 
 1. Go to **GitHub Settings → Developer settings → GitHub Apps → New GitHub App**.
-2. **App Name**: Choose a unique name (e.g., `tempus-security-gate-acme`).
+2. **App Name**: Choose a unique name (e.g., `tempus-guard-acme`).
 3. **Homepage URL**: `https://github.com/Julio-Patron/tempus-ddb` (or your organization's URL).
 4. **Permissions**:
    - **Repository permissions**:
      - **Issues**: `Read and write`
      - **Pull requests**: `Read and write`
-     - **Contents**: `Read and write` (required for merging pull requests)
+     - **Contents**: `Read and write` (required for pushing branches and merging pull requests)
+     - **Checks**: `Read and write` (required for the "Verified by Tempus" check run)
      - **Metadata**: `Read-only` (implicit)
 5. **Webhooks** (Optional):
    - If using the webhook service, provide your server URL and generate a secret string.
@@ -108,3 +109,35 @@ Only a response containing boolean `merged: true` yields success. HTTP 405 means
 PR cannot be merged; HTTP 409 means HEAD differs from the authorized SHA. Both fail
 without retry. Ambiguous results remain `UNKNOWN` and require read-only reconciliation.
 See [GitHub's merge endpoint](https://docs.github.com/en/rest/pulls/pulls#merge-a-pull-request).
+
+## 7. Publish the "Verified by Tempus" check (Guard flow)
+
+For existing Apps, add **Repository permissions → Checks → Read and write** and let each
+installation accept the new permission. The check run token is scoped to `checks: write` and the
+operator-bound repository, and is minted only by the check publisher, never by an action.
+
+Run the executor with the gate at hand, so it can close the trace and export the evidence:
+
+```bash
+tempus-github-app-executor \
+  --permit permit.json --bundle agent.bundle \
+  --gate-db gate.db --gate-keyfile gate.keys.json \
+  --bundle-out evidence/${ACTION_ID}.json
+```
+
+or set `TEMPUS_GATE_DB` and `TEMPUS_GATE_KEYFILE` in `.env`. The gate key never leaves this
+process either: keep the gate database and key file readable by the executor only. What the
+flow does, step by step, and what each exit code means, is in the
+[README](../README.md#the-verified-by-tempus-check-guard-flow).
+
+What a reviewer sees on the pull request: a check named **Verified by Tempus** (green only when
+the evidence verifies and the action succeeded), whose *Details* link opens the public verifier
+with the bundle digest and the gate key pre-filled, and whose text embeds the evidence bundle.
+Pasting that bundle into <https://julio-patron.github.io/tempus-ddb/verify.html> re-verifies
+every signature offline; the page says what a bundle cannot show (single-use consumption lives
+in the gate's ledger).
+
+On the agent's machine, [the Tempus Guard CLI](https://github.com/Julio-Patron/Universal-Kernel-Ciel) produces
+the signed `github.push_branch` intent with the bundle, the paths and `diff_sha256`
+(`tempus guard intent --branch agent/fix-123 --base origin/main ...`),
+and `tempus guard hook install` refuses direct pushes from that clone.

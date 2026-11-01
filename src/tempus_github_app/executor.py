@@ -102,7 +102,7 @@ class GitHubAppActionAdapter(ActionAdapter):
             "Accept": "application/vnd.github+json",
             "Authorization": "Bearer " + token,
             "Content-Type": "application/json",
-            "User-Agent": "tempus-github-app-executor/0.1.0",
+            "User-Agent": "tempus-github-app-executor/0.2.0",
             "X-GitHub-Api-Version": "2022-11-28",
         }
 
@@ -377,6 +377,12 @@ class GitHubAppActionAdapter(ActionAdapter):
         for field in ("id", "number", "html_url", "url", "state"):
             if field in response and type(response[field]) in (str, int):
                 result[field] = response[field]
+        if action_type == "github.create_pull_request":
+            # The commit the new pull request points at; the Guard check run attaches to it.
+            head = response.get("head")
+            sha = head.get("sha") if isinstance(head, dict) else None
+            if isinstance(sha, str) and re.fullmatch(r"[0-9a-f]{40}", sha.lower()):
+                result["head_sha"] = sha.lower()
         return result
 
 

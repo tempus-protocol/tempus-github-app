@@ -1,10 +1,10 @@
 <div align="center">
 
-# Tempus GitHub App
+# Tempus Guard for GitHub
 
-### Credential-Isolated Mediated Executor and GitHub App Integration for Tempus DDB
+### Every agent change arrives with evidence
 
-**Short-lived installation tokens · Zero-leak credential boundary · Atomic single-use permit consumption · Cryptographic receipts**
+**Signed, single-use permits · Short-lived installation tokens · One mediated write · A "Verified by Tempus" check with the evidence bundle anyone can verify**
 
 <p align="center">
   <a href="https://github.com/Julio-Patron/tempus-github-app/actions/workflows/ci.yml"><img src="https://github.com/Julio-Patron/tempus-github-app/actions/workflows/ci.yml/badge.svg" alt="CI Build" /></a>
@@ -19,14 +19,15 @@
 
 ## 🔒 Overview
 
-**Tempus GitHub App** decouples GitHub privileged operations from autonomous AI agents. Rather than provisioning personal access tokens (PATs) directly to agents or runners:
+**Tempus Guard for GitHub** is the first installable product on the [Tempus protocol](https://github.com/Julio-Patron/tempus-ddb). It decouples GitHub privileged operations from autonomous AI agents and leaves evidence behind. Rather than provisioning personal access tokens (PATs) directly to agents or runners:
 
 1. **Requesting Agents** sign an **Intent** declaring the requested repository action without holding GitHub credentials.
 2. **Tempus Gate** evaluates cryptographic tenant policy and grants an expiring, single-use signed **Permit**.
 3. **Tempus GitHub App Executor** validates the permit, atomically consumes it, and mints short-lived (1-hour), installation- and repository-scoped GitHub App tokens using an RSA private key.
 4. **Execution Outcomes** are signed and recorded into the Tempus immutable decision ledger.
+5. **The Guard flow** exports the action's evidence bundle, verifies it against the pinned gate key and publishes a **Verified by Tempus** check run on the commit the action produced, linking to the public verifier.
 
-Neither the GitHub App private key nor ephemeral installation tokens ever leak to the requesting agent or execution receipts.
+Neither the GitHub App private key nor ephemeral installation tokens ever leak to the requesting agent or execution receipts. A reviewer verifies the check's evidence from a browser with only the gate's public key, without installing Tempus. On the agent's side, [the Tempus Guard CLI](https://github.com/Julio-Patron/Universal-Kernel-Ciel) (`tempus guard intent`) builds and signs the push intent from a local branch.
 
 ```text
 ┌─────────────────┐       1. Signed Intent        ┌──────────────────┐
@@ -66,13 +67,17 @@ pip install -e ".[server]"
 pip install -e ".[dev]"
 ```
 
-Requires Python 3.10+. The supported core line is **tempus-ddb 0.5.3 or newer, below 0.6**
-(`tempus-ddb>=0.5.3,<0.6`). CI installs `tempus-ddb==0.5.3` from PyPI and also builds the
-[`desarrollo`](https://github.com/Julio-Patron/tempus-ddb/tree/desarrollo) branch from git.
-Platforms without a wheel, and that git branch, need the stable Rust toolchain.
+Requires Python 3.10+ and `git`. The supported core line is **tempus-ddb 0.6, below 0.7**
+(`tempus-ddb>=0.6,<0.7`): the Guard flow needs `export_bundle` with `verify_url`, the
+`verify_bundle` trust report and `bundle_digest`, all new in 0.6. Until 0.6.0 is published
+on PyPI, install the core from its `main` branch first (stable Rust toolchain required):
 
-When 0.5.4 is published, raise the minimum to `tempus-ddb>=0.5.4,<0.6`. Release 0.5.3
-has a payments bypass, so it must not remain the minimum once 0.5.4 exists.
+```bash
+pip install "tempus-ddb @ git+https://github.com/Julio-Patron/tempus-ddb.git@main"
+pip install -e .
+```
+
+CI does the same on Linux, Windows and macOS for Python 3.10 to 3.12.
 
 ---
 
@@ -161,7 +166,10 @@ Unknown input fields are rejected before requesting installation credentials.
 | `github.add_labels` | Positive integer `issue_number`, non-empty list of non-empty `labels` | `issues: write` |
 | `github.request_review` | Positive integer `pull_number`, at least one non-empty list of `reviewers` or `team_reviewers` | `pull_requests: write` |
 | `github.merge_pull_request` | Positive integer `pull_number`, 40-character hexadecimal HEAD `sha`, explicit `merge_method` (`merge`, `squash`, `rebase`) | `contents: write` |
-| `github.push_branch` | `branch` under the push namespace (default `agent/`), lowercase 40-hex `base_sha` and `tip_sha`, boolean `new_branch`, `bundle_sha256` of the git bundle, sorted unique `paths` (at most 1,000) | `contents: write` |
+| `github.push_branch` | `branch` under the push namespace (default `agent/`), lowercase 40-hex `base_sha` and `tip_sha`, boolean `new_branch`, `bundle_sha256` of the git bundle, sorted unique `paths` (at most 1,000), optional `diff_sha256` | `contents: write` |
+
+The Guard flow additionally mints a `checks: write` token, scoped to the same repository, to publish the
+**Verified by Tempus** check run. No action can request that scope; only the check run publisher does.
 
 Comments are conversation-thread comments on issues or pull requests. Review
 requests accept user logins and team slugs. Label outcomes include only label
@@ -210,8 +218,53 @@ HTTP 4xx) are `FAILED`. The executor image must include `git` (the provided
 tempus-github-app-executor --permit permit.json --bundle agent.bundle
 ```
 
+**`diff_sha256`** (optional) binds the *content* of the change, not only its paths: the sha256
+of the raw bytes of `git diff-tree -r -z --no-renames --no-commit-id --raw --abbrev=40 <base_sha> <tip_sha>`,
+plumbing output that does not depend on anyone's git settings. The agent's side computes it
+(`tempus guard intent` does), the executor recomputes it from the bundle after unbundling and refuses
+the push (`TEMPUS_GITHUB_BINDING_REJECTED`, before any token is used for writing) when it differs.
+The accepted digest is echoed in the outcome, so it ends up in the signed evidence.
+
+### The "Verified by Tempus" check (Guard flow)
+
+With `--gate-keyfile` and `--gate-db` (or `TEMPUS_GATE_KEYFILE` / `TEMPUS_GATE_DB`) the
+executor runs the whole Guard flow instead of stopping at the signed outcome:
+
+1. **Execute** the permit as above and sign the `tempus.action-outcome.v1`.
+2. **Commit the outcome** to the gate (`commit_outcome_signed`), closing the trace.
+3. **Export the evidence bundle** (`export_bundle`; `--create-checkpoint` first signs a fresh
+   gate checkpoint so the bundle shows ledger inclusion; `--max-stream-events` bounds its size;
+   `--bundle-out` also writes it to a file).
+4. **Verify the bundle independently** with the pinned gate key (`--gate-id`) and the executor's
+   own public key, exactly as the public verifier would. The result, its `bundle_digest` and
+   its `verify_url` go into the output.
+5. **Publish the check run** on the commit the action produced: the pushed `tip_sha`
+   (`github.push_branch`), the merge commit (`github.merge_pull_request`) or the PR head
+   (`github.create_pull_request`). Actions that produce no commit (issues, comments, labels,
+   review requests) keep their evidence and skip the check.
+
+The check is named **Verified by Tempus** (`--check-name` / `TEMPUS_CHECK_NAME` to change it per
+environment), carries the `action_id` as `external_id`, and concludes `success` only when the
+bundle verifies **and** the action succeeded; anything else is `failure`, with the verifier's
+error codes in the text. Its details link is the bundle's `verify_url` with the gate key
+appended as a hint (`#bundle=<digest>&gate=<key>`), and the check text embeds the bundle itself
+when it fits GitHub's 65,535-character limit (otherwise it names the digest), so a reviewer
+can paste it into <https://julio-patron.github.io/tempus-ddb/verify.html> and verify without
+installing anything. The check also says what the bundle cannot prove (`trust.not_checked`).
+
+```bash
+tempus-github-app-executor --permit permit.json --bundle agent.bundle \
+  --gate-db gate.db --gate-keyfile gate.keys.json --bundle-out evidence/bundle.json
+```
+
+Exit codes: `0` done; `1` a step before the check failed (a gate that refuses the outcome
+reports the signed partial result on stderr); `2` the GitHub write was ambiguous (`UNKNOWN`,
+never retried); `3` everything is signed and exported but the check run could not be published
+(the evidence stands; publish it again or verify from the bundle). `--no-check-run` /
+`TEMPUS_NO_CHECK_RUN=1` closes the trace and exports the bundle without touching the Checks API.
+
 * **Zero Credential & Information Leakage**: The agent never receives GitHub tokens. The executor process handles authentication internally, and the webhook server sanitizes error responses to prevent internal detail disclosure.
-* **Scope Minimization**: Tokens are generated on-demand with minimal repository and permission scope (`issues: write`, `pull_requests: write`, or `contents: write` for merges).
+* **Scope Minimization**: Tokens are generated on-demand with minimal repository and permission scope (`issues: write`, `pull_requests: write`, `contents: write` for merges and pushes, `checks: write` only for the check run).
 * **Redirect Shielding**: Enforces strict redirect blocking (`RejectRedirects`) on API calls to prevent credential forwarding to third-party endpoints.
 * **Replay Protection**: The underlying Tempus permit is consumed atomically; replay attempts fail immediately without contacting GitHub.
 * **Adapter Conformance**: Validated against the official `tempus_ddb.testing.AdapterConformanceHarness` conformance suite.

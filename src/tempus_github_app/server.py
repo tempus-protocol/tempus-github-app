@@ -37,9 +37,9 @@ def create_webhook_app(
     event_handler = handler or GitHubWebhookHandler(secret)
 
     app = FastAPI(
-        title="Tempus GitHub App Webhook Server",
-        description="Receives, verifies, and dispatches GitHub App events for Tempus DDB",
-        version="0.1.0",
+        title="Tempus Guard for GitHub webhook server",
+        description="Receives, verifies, and dispatches GitHub App events for Tempus Guard",
+        version="0.2.0",
     )
 
     @app.get("/healthz")
