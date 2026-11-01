@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tempus-github-app"
-version = "0.1.0"
-description = "GitHub App integration and mediated executor for Tempus DDB"
+version = "0.2.0"
+description = "Tempus Guard for GitHub: the mediated executor and the Verified by Tempus check, on the Tempus protocol"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"
@@ -34,9 +34,10 @@ classifiers = [
     "Topic :: Security :: Cryptography",
 ]
 dependencies = [
-    # Minimum stays on 0.5.3 until 0.5.4 exists. 0.5.3 has a payments bypass,
-    # so the floor becomes tempus-ddb>=0.5.4,<0.6 when that release is published.
-    "tempus-ddb>=0.5.3,<0.6",
+    # The Guard flow needs the 0.6 core (export_bundle with verify_url, verify_bundle
+    # trust report, bundle_digest). Until 0.6.0 is on PyPI, install the core from git:
+    #   pip install "tempus-ddb @ git+https://github.com/tempus-protocol/tempus-ddb.git@main"
+    "tempus-ddb>=0.6,<0.7",
     "cryptography>=42.0.0",
     "pyjwt>=2.8.0",
 ]

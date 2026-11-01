@@ -1,13 +1,24 @@
-# GitHub App Manifest for Tempus DDB GitHub App
+# GitHub App Manifest for Tempus Guard for GitHub
 # See: https://docs.github.com/en/apps/sharing-github-apps/registering-a-github-app-from-a-manifest
-name: Tempus Security Gate
-url: https://github.com/Julio-Patron/tempus-github-app
-description: B2A (Bot-to-Agent) Zero-Trust Authorization Gate and Mediated Executor for GitHub
+#
+# Updating this file does not change an App that is already registered, nor an installation
+# that already accepted its permissions: change the App's permissions in its settings and
+# let each installation accept them (docs/SETUP.md).
+name: Tempus Guard for GitHub
+url: https://github.com/tempus-protocol/tempus-github-app
+description: >-
+  Every agent change arrives with evidence. Agents never hold a GitHub credential: a Tempus
+  gate issues a signed, single-use permit, this App performs the write, and the pull request
+  gets a "Verified by Tempus" check linking to an evidence bundle anyone can verify in a
+  browser with the gate's public key.
 public: false
 default_permissions:
+  # Mediated writes bound to a permit.
   contents: write
   issues: write
   pull_requests: write
+  # The "Verified by Tempus" check run on the pushed or merged commit.
+  checks: write
   metadata: read
 default_events:
   - issues

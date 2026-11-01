@@ -16,15 +16,17 @@ on:
 jobs:
   test:
     runs-on: ${{ matrix.os }}
-    # desarrollo is built from git (Rust). Cold compiles on macOS exceed 20 minutes.
+    # The core is built from git (Rust). Cold compiles on macOS exceed 20 minutes.
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         python-version: ['3.10', '3.11', '3.12']
-        # Published floor, and the core's desarrollo branch built from git.
-        tempus-ddb: ['0.5.3', 'desarrollo']
+        # The Guard flow needs the 0.6 core. Until 0.6.0 is published on PyPI the only
+        # source is the core's main branch; add the published floor ('0.6.0') back here
+        # once the release is out.
+        tempus-ddb: ['main']
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -47,16 +49,15 @@ jobs:
           TEMPUS_DDB: ${{ matrix.tempus-ddb }}
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e ".[dev,server]"
-          # Reinstall after the package so pip cannot replace the git build
-          # with the PyPI wheel of the same version. --no-deps keeps the
-          # dependencies the editable install already resolved.
-          if [ "$TEMPUS_DDB" = "desarrollo" ]; then
-            python -m pip install --upgrade --force-reinstall --no-deps \
-              "tempus-ddb @ git+https://github.com/Julio-Patron/tempus-ddb.git@desarrollo"
+          # The core first, from git, so the editable install below resolves the
+          # tempus-ddb>=0.6 requirement against it instead of looking on PyPI.
+          if [ "$TEMPUS_DDB" = "main" ]; then
+            python -m pip install \
+              "tempus-ddb @ git+https://github.com/tempus-protocol/tempus-ddb.git@main"
           else
-            python -m pip install --upgrade --force-reinstall --no-deps "tempus-ddb==0.5.3"
+            python -m pip install "tempus-ddb==$TEMPUS_DDB"
           fi
+          python -m pip install -e ".[dev,server]"
 
       - name: Run Ruff check
         run: ruff check .

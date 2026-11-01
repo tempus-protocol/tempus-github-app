@@ -17,7 +17,7 @@ Vulnerabilities in the core belong to that project.
 
 If you discover a security vulnerability, please report it responsibly.
 
-- Open a private security advisory on GitHub: https://github.com/Julio-Patron/tempus-github-app/security/advisories/new
+- Open a private security advisory on GitHub: https://github.com/tempus-protocol/tempus-github-app/security/advisories/new
 
 Please do **not** open a public issue for security vulnerabilities.
 
@@ -40,4 +40,4 @@ privately.
   controls remain operator responsibilities.
 
 Read the core threat model before using Tempus for any high-impact action:
-https://github.com/Julio-Patron/tempus-ddb/blob/main/THREAT_MODEL.md
+https://github.com/tempus-protocol/tempus-ddb/blob/main/THREAT_MODEL.md

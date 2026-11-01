@@ -5,10 +5,32 @@ All notable changes to `tempus-github-app` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [Unreleased] — 0.2.0 "Guard"
+
+Tempus Guard for GitHub: every agent change arrives with evidence. The repository lives in the
+`tempus-protocol` GitHub organization; every link (core, verifier, Guard CLI) points there.
 
 ### Added
 
+- **"Verified by Tempus" check run.** With `--gate-keyfile` and `--gate-db` the executor runs the
+  Guard flow: executes the permit, commits the signed outcome to the gate, exports the evidence
+  bundle (optionally after `--create-checkpoint`), verifies it against the pinned gate key and
+  the executor's own key, and publishes a check run on the commit the action produced
+  (pushed tip, merge commit or PR head). `external_id` is the `action_id`; the conclusion is
+  `success` only for a verified bundle of a succeeded action; the details link is the bundle's
+  `verify_url` plus the gate key hint; the text embeds the bundle when it fits GitHub's limit
+  and lists what the bundle cannot prove. New modules `check_run` (`CheckRunPublisher`,
+  `Evidence`, `build_check_run`) and `guard` (`GuardFlow`, `GuardError`, `read_public_key`);
+  new CLI options `--gate-keyfile`, `--check-name`, `--no-check-run`, `--bundle-out`,
+  `--create-checkpoint`, `--max-stream-events` and their `TEMPUS_*` variables; exit code `3`
+  when only the check run could not be published. Check tokens use a dedicated
+  `checks: write` scope that no action can request.
+- **`diff_sha256`** in `github.push_branch`: optional sha256 of the raw
+  `git diff-tree -r -z --no-renames --no-commit-id --raw --abbrev=40 <base> <tip>` listing.
+  The executor recomputes it from the unbundled commits and refuses a mismatch before the
+  push; the accepted digest is echoed in the outcome.
+- `github.create_pull_request` outcomes include the PR `head_sha`, so the check run can attach
+  to the head commit.
 - `github.push_branch`: publish an agent's git bundle to one branch under an exact-SHA permit. The permit binds the bundle sha256, `tip_sha`, `base_sha` and every changed path; the executor re-derives them, then creates or fast-forwards only branches under a namespace (`--push-branch-prefix`, default `agent/`) with a lease-guarded push. Git runs isolated from operator configuration, HTTPS-only, with the token in a repository-scoped header. New CLI options `--bundle` / `TEMPUS_BUNDLE` and `--push-branch-prefix` / `TEMPUS_PUSH_BRANCH_PREFIX`; the Docker image now includes `git`.
 - Thread comments, issue/PR labels, and review requests with strict input validation and sanitized outcomes.
 - Pull request merges with mandatory 40-character HEAD SHA, explicit merge method, repository-scoped `contents: write` tokens, and confirmation of boolean `merged: true`.
@@ -20,6 +42,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The App is **Tempus Guard for GitHub** (manifest name and description, package description,
+  webhook server title); the manifest requests `checks: write`. Package version 0.2.0.
+- Core dependency is `tempus-ddb>=0.6,<0.7` (the Guard flow needs 0.6's `export_bundle`
+  `verify_url`, `verify_bundle` trust report and `bundle_digest`). CI installs the core from its
+  `main` branch until 0.6.0 is published on PyPI.
 - Updated `pyproject.toml` dependency to consume official `tempus-ddb>=0.5.2` package.
 
 ### Fixed

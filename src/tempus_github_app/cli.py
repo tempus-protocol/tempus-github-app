@@ -1,4 +1,11 @@
-"""Command line interface for Tempus GitHub App Executor."""
+"""Command line interface for Tempus Guard for GitHub.
+
+Without ``--gate-keyfile`` this is the mediated executor alone: it consumes a permit,
+performs the GitHub action and prints the signed outcome. With ``--gate-keyfile`` (and
+``--gate-db``) it runs the whole Guard flow: executes, commits the outcome to the gate,
+exports the evidence bundle, verifies it against the pinned gate key and publishes the
+"Verified by Tempus" check run on the commit the action produced.
+"""
 
 from __future__ import annotations
 
@@ -11,9 +18,11 @@ from pathlib import Path
 from tempus_ddb.executor_runtime import UnknownExecutionError
 
 from . import __version__
+from .check_run import DEFAULT_CHECK_NAME, CheckRunPublisher
 from .credentials import GitHubAppCredentials
 from .executor import GitHubAppExecutorAdapter
 from .git_push import DEFAULT_BRANCH_PREFIX
+from .guard import GuardError, GuardFlow, read_public_key
 
 try:
     from dotenv import load_dotenv
@@ -42,7 +51,11 @@ def _get_env_int(name: str, default: int | None = None) -> int | None:
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         prog="tempus-github-app-executor",
-        description="Execute GitHub writes bound to a signed Tempus permit using GitHub App credentials",
+        description=(
+            "Execute GitHub writes bound to a signed Tempus permit using GitHub App credentials; "
+            "with --gate-keyfile, also close the trace in the gate, export the evidence bundle "
+            "and publish the Verified by Tempus check run"
+        ),
     )
     parser.add_argument(
         "--version", action="version", version=f"%(prog)s {__version__}"
@@ -130,6 +143,46 @@ def main(argv: list[str] | None = None) -> None:
         ),
     )
 
+    # Tempus Guard: close the trace and publish the check run.
+    guard = parser.add_argument_group(
+        "Tempus Guard",
+        "With --gate-keyfile and --gate-db the executor also commits the signed outcome to the "
+        "gate, exports the action's evidence bundle, verifies it against --gate-id and publishes "
+        "the check run on the commit the action produced.",
+    )
+    guard.add_argument(
+        "--gate-keyfile",
+        default=os.environ.get("TEMPUS_GATE_KEYFILE"),
+        help="Gate Ed25519 key file; enables the Guard flow (env: TEMPUS_GATE_KEYFILE)",
+    )
+    guard.add_argument(
+        "--check-name",
+        default=os.environ.get("TEMPUS_CHECK_NAME", DEFAULT_CHECK_NAME),
+        help=f"Name of the check run (env: TEMPUS_CHECK_NAME, default: {DEFAULT_CHECK_NAME})",
+    )
+    guard.add_argument(
+        "--no-check-run",
+        action="store_true",
+        default=os.environ.get("TEMPUS_NO_CHECK_RUN", "").strip().lower() in {"1", "true", "yes"},
+        help="Close the trace and export the bundle but publish no check run (env: TEMPUS_NO_CHECK_RUN=1)",
+    )
+    guard.add_argument(
+        "--bundle-out",
+        default=os.environ.get("TEMPUS_BUNDLE_OUT"),
+        help="Also write the exported evidence bundle to this file (env: TEMPUS_BUNDLE_OUT)",
+    )
+    guard.add_argument(
+        "--create-checkpoint",
+        action="store_true",
+        help="Sign a fresh gate checkpoint before exporting, so the bundle shows ledger inclusion",
+    )
+    guard.add_argument(
+        "--max-stream-events",
+        type=int,
+        default=_get_env_int("TEMPUS_MAX_STREAM_EVENTS"),
+        help="Omit the checkpoint from the bundle when its stream is larger than this (env: TEMPUS_MAX_STREAM_EVENTS)",
+    )
+
     args = parser.parse_args(argv)
 
     # Validate required arguments with informative errors
@@ -152,6 +205,8 @@ def main(argv: list[str] | None = None) -> None:
         missing.append("--installation-id (or GITHUB_APP_INSTALLATION_ID)")
     if not args.repository:
         missing.append("--repository (or GITHUB_APP_REPOSITORY)")
+    if args.gate_keyfile and not args.gate_db:
+        missing.append("--gate-db (or TEMPUS_GATE_DB), required by --gate-keyfile")
 
     if missing:
         print(
@@ -183,11 +238,38 @@ def main(argv: list[str] | None = None) -> None:
         )
 
         permit_content = _read_permit(args.permit)
-        outcome = adapter.execute(permit_content, bundle_path=args.bundle)
-        print(outcome)
+        if not args.gate_keyfile:
+            print(adapter.execute(permit_content, bundle_path=args.bundle))
+            return
+
+        from tempus_ddb import TempusDDB
+
+        gate = TempusDDB(args.gate_db, args.gate_keyfile)
+        publisher = None
+        if not args.no_check_run:
+            publisher = CheckRunPublisher(credentials, api_url=args.api_url, name=args.check_name)
+        flow = GuardFlow(
+            adapter,
+            gate,
+            gate_public_key=args.gate_id,
+            executor_public_key=read_public_key(args.executor_keyfile),
+            publisher=publisher,
+            max_stream_events=args.max_stream_events,
+            create_checkpoint=args.create_checkpoint,
+        )
+        result = flow.run(permit_content, bundle_path=args.bundle, bundle_out=args.bundle_out)
+        print(json.dumps(result, indent=2))
+        check = result.get("check_run") or {}
+        if check.get("status") in {"FAILED", "UNKNOWN"}:
+            # The evidence is signed and exported; only the check run is missing on GitHub.
+            print(json.dumps({"status": "check_run_not_published", "check_run": check}), file=sys.stderr)
+            raise SystemExit(3)
     except UnknownExecutionError as exc:
         print(exc.observation, file=sys.stderr)
         raise SystemExit(2) from exc
+    except GuardError as exc:
+        print(json.dumps({"status": "error", "message": str(exc), "partial": exc.partial}), file=sys.stderr)
+        raise SystemExit(1) from exc
     except Exception as exc:
         print(json.dumps({"status": "error", "message": str(exc)}), file=sys.stderr)
         raise SystemExit(1) from exc
