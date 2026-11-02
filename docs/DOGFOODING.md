@@ -204,5 +204,7 @@ dogfooding; it needs the Marketplace listing and is tracked in the plan.
 - Agents opening or merging pull requests through Guard (`github.create_pull_request`,
   `github.merge_pull_request` are supported by the executor but left out of the dogfooding
   policy by choice).
-- Anchoring the gate's checkpoints outside the operator (`tempus anchor`, Fase 3). Until
-  then a bundle proves what the gate signed, not that the gate's ledger is the only one.
+- Anchoring the gate's checkpoints outside the operator. `tempus anchor` is on tempus-ddb's
+  `main` for 0.8, unreleased, and this runbook does not use it yet. Without it a checkpoint's
+  date is the gate's own claim. Even with it, a bundle does not prove that the gate's ledger is
+  the only one.
