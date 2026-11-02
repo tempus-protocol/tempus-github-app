@@ -27,7 +27,7 @@
 4. **Execution Outcomes** are signed and recorded into the Tempus immutable decision ledger.
 5. **The Guard flow** exports the action's evidence bundle, verifies it against the pinned gate key and publishes a **Verified by Tempus** check run on the commit the action produced, linking to the public verifier.
 
-Neither the GitHub App private key nor ephemeral installation tokens ever leak to the requesting agent or execution receipts. A reviewer verifies the check's evidence from a browser with only the gate's public key, without installing Tempus. On the agent's side, [the Tempus Guard CLI](https://github.com/tempus-protocol/Universal-Kernel-Ciel) (`tempus guard intent`) builds and signs the push intent from a local branch.
+Neither the GitHub App private key nor ephemeral installation tokens ever leak to the requesting agent or execution receipts. A reviewer verifies the check's evidence from a browser with only the gate's public key, without installing Tempus. On the agent's side, [the Tempus Guard CLI](https://github.com/tempus-protocol/tempus-guard-cli) (`tempus guard intent`) builds and signs the push intent from a local branch.
 
 ```text
 ┌─────────────────┐       1. Signed Intent        ┌──────────────────┐
