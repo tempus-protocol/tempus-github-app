@@ -141,3 +141,8 @@ On the agent's machine, [the Tempus Guard CLI](https://github.com/tempus-protoco
 the signed `github.push_branch` intent with the bundle, the paths and `diff_sha256`
 (`tempus guard intent --branch agent/fix-123 --base origin/main ...`),
 and `tempus guard hook install` refuses direct pushes from that clone.
+
+## 8. Dogfooding
+
+How the tempus-protocol repositories themselves accept agent pushes only through Guard, end to end
+on one machine: [DOGFOODING.md](DOGFOODING.md).
